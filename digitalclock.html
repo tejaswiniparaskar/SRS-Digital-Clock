@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Digital Clock — Dark / Light Mode</title>
+  <style>
+    :root{
+      --bg:#7c5583;
+      --card:#bd8bbd;
+      --text:#0b1220;
+      --muted:#536078;
+      --accent: #a8769d;
+      --shadow: 0 8px 24px rgba(11,18,32,0.08);
+    }
+    [data-theme="dark"]{
+      --bg:#0b1220;
+      --card:#4e0a3d;
+      --text:#e6eefb;
+      --muted:#325391;
+      --accent:#2b0325;
+      --shadow: 0 10px 30px rgba(2,6,23,0.6);
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,'Helvetica Neue',Arial}
+    body{display:grid;place-items:center;padding:28px;background:linear-gradient(180deg,var(--bg),rgba(0,0,0,0.02));color:var(--text)}
+
+    .clock-wrap{width:100%;max-width:420px;background:var(--card);padding:28px;border-radius:18px;box-shadow:var(--shadow);display:grid;gap:12px;align-items:center}
+
+    .top{display:flex;justify-content:space-between;align-items:center}
+    .brand{font-weight:600;letter-spacing:0.2px}
+    .muted{color:var(--muted);font-size:13px}
+
+    .time{font-size:64px;font-weight:700;line-height:1;display:flex;gap:10px;align-items:baseline}
+    .ampm{font-size:18px;font-weight:600;color:var(--muted)}
+
+    .date{font-size:15px;color:var(--muted)}
+
+    .controls{display:flex;gap:8px;align-items:center}
+    .btn{background:transparent;border:1px solid rgba(11,18,32,0.06);padding:8px 12px;border-radius:10px;cursor:pointer;font-weight:600}
+    [data-theme="dark"] .btn{border:1px solid rgba(255,255,255,0.06)}
+
+    .toggle{display:inline-flex;align-items:center;gap:8px}
+    .switch{width:52px;height:30px;border-radius:999px;position:relative;background:linear-gradient(180deg,rgba(0,0,0,0.04),rgba(0,0,0,0.02));padding:4px;display:inline-flex;align-items:center}
+    .knob{width:22px;height:22px;border-radius:50%;background:var(--card);box-shadow:0 3px 8px rgba(2,6,23,0.12);transform:translateX(0);transition:transform .22s}
+    [data-theme="dark"] .knob{background:var(--accent)}
+    .switch[data-on="true"] .knob{transform:translateX(22px)}
+
+    .small{font-size:12px;color:var(--muted)}
+
+   
+    @media (max-width:420px){
+      .time{font-size:44px}
+      .clock-wrap{padding:18px;border-radius:14px}
+    }
+
+  </style>
+</head>
+<body>
+  <div class="clock-wrap" id="clockWrap">
+    <div class="top">
+      <div>
+        <div class="brand">Digital Clock</div>
+        <div class="muted small">Real-time — local time</div>
+      </div>
+      <div class="controls">
+        <button class="btn" id="tzBtn" title="Show timezone">Timezone</button>
+        <div class="toggle" title="Toggle dark / light">
+          <div class="switch" id="themeSwitch" role="switch" aria-checked="false" tabindex="0" data-on="false">
+            <div class="knob" id="knob"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="time" id="time">
+        <span id="hh">--</span><span>:</span><span id="mm">--</span><span>:</span><span id="ss">--</span>
+        <span class="ampm" id="ampm">--</span>
+      </div>
+      <div class="date" id="date">Loading date...</div>
+    </div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div class="small muted">24/12-hour: <strong id="formatLabel">12</strong></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn" id="fmtToggle">Toggle 12/24</button>
+        <button class="btn" id="copyBtn">Copy Time</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    
+    const root = document.documentElement;
+    const wrap = document.getElementById('clockWrap');
+    const hhEl = document.getElementById('hh');
+    const mmEl = document.getElementById('mm');
+    const ssEl = document.getElementById('ss');
+    const ampmEl = document.getElementById('ampm');
+    const dateEl = document.getElementById('date');
+    const themeSwitch = document.getElementById('themeSwitch');
+    const tzBtn = document.getElementById('tzBtn');
+    const fmtToggle = document.getElementById('fmtToggle');
+    const formatLabel = document.getElementById('formatLabel');
+    const copyBtn = document.getElementById('copyBtn');
+
+    
+    let use24 = false;
+
+    
+    const saved = localStorage.getItem('clock-theme');
+    if(saved){
+      document.documentElement.setAttribute('data-theme', saved);
+      themeSwitch.setAttribute('data-on', saved === 'dark');
+      themeSwitch.setAttribute('aria-checked', saved === 'dark');
+    } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches){
+      document.documentElement.setAttribute('data-theme', 'dark');
+      themeSwitch.setAttribute('data-on', 'true');
+      themeSwitch.setAttribute('aria-checked', 'true');
+    }
+
+    themeSwitch.addEventListener('click', toggleTheme);
+    themeSwitch.addEventListener('keydown', (e)=>{ if(e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleTheme(); } });
+
+    function toggleTheme(){
+      const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      const next = isDark ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      themeSwitch.setAttribute('data-on', next === 'dark');
+      themeSwitch.setAttribute('aria-checked', next === 'dark');
+      localStorage.setItem('clock-theme', next);
+    }
+
+    tzBtn.addEventListener('click', ()=>{
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Local';
+      tzBtn.textContent = tz;
+      setTimeout(()=> tzBtn.textContent = 'Timezone', 3000);
+    });
+
+    fmtToggle.addEventListener('click', ()=>{
+      use24 = !use24;
+      formatLabel.textContent = use24 ? '24' : '12';
+    });
+
+    copyBtn.addEventListener('click', async ()=>{
+      const text = hhEl.textContent + ':' + mmEl.textContent + ':' + ssEl.textContent + (use24 ? '' : ' ' + ampmEl.textContent);
+      try{
+        await navigator.clipboard.writeText(text);
+        copyBtn.textContent = 'Copied!';
+        setTimeout(()=> copyBtn.textContent = 'Copy Time', 1500);
+      }catch(e){
+        copyBtn.textContent = 'Unable';
+        setTimeout(()=> copyBtn.textContent = 'Copy Time', 1500);
+      }
+    });
+
+    function pad(n){return n.toString().padStart(2,'0');}
+
+    function update(){
+      const now = new Date();
+      let hh = now.getHours();
+      const mm = now.getMinutes();
+      const ss = now.getSeconds();
+      let ampm = '';
+      if(!use24){
+        ampm = hh >= 12 ? 'PM' : 'AM';
+        hh = hh % 12 || 12; 
+      }
+      hhEl.textContent = pad(hh);
+      mmEl.textContent = pad(mm);
+      ssEl.textContent = pad(ss);
+      ampmEl.textContent = use24 ? '' : ampm;
+
+      const opts = {weekday:'short', year:'numeric', month:'short', day:'numeric'};
+      dateEl.textContent = now.toLocaleDateString(undefined, opts);
+    }
+
+   
+    update();
+    setInterval(update, 250);
+
+    
+    window.addEventListener('keydown', (e)=>{
+      if(e.key.toLowerCase() === 't') toggleTheme();
+      if(e.key.toLowerCase() === 'f') { use24 = !use24; formatLabel.textContent = use24 ? '24' : '12'; }
+    });
+
+    
+    window.__digitalClock = {toggleTheme, update};
+  </script>
+</body>
+</html>
